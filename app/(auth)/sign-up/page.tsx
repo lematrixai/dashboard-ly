@@ -1,30 +1,40 @@
 "use client"
 
-import { AuthForm } from "@/components/auth-form"
+import { AuthSignUpForm } from "@/components/auth-signup-form"
 import { AuthLayout } from "@/components/auth-layout"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import { registerUser } from "@/lib/auth"
+import { setUserCookieAction } from "@/lib/auth-actions"
+import { type SignUpFormData } from "@/lib/validations/auth"
 
 export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get('redirect') || '/Dashboard'
 
-  const handleRegister = async (data: { username?: string; email: string; password: string }) => {
+  const handleRegister = async (data: SignUpFormData) => {
     setIsLoading(true)
     setError(undefined)
     
     try {
-      // TODO: Implement actual registration logic here
-      console.log('Registration attempt:', data)
+      // Register with Firebase
+      const user = await registerUser(data.email, data.password, data.username)
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Set server-side cookie
+      await setUserCookieAction({
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL
+      })
       
-      // For demo purposes, redirect to sign-in
-      window.location.href = '/sign-in'
-    } catch (err) {
-      setError('Failed to create account. Please try again.')
+      // Redirect to intended destination or dashboard
+      router.push(redirectTo)
+    } catch (err: any) {
+      setError(err.message || 'Failed to create account')
     } finally {
       setIsLoading(false)
     }
@@ -32,14 +42,14 @@ export default function SignUpPage() {
 
   const handleTypeChange = (type: 'signin' | 'signup') => {
     if (type === 'signin') {
-      router.push('/sign-in')
+      const signInUrl = redirectTo ? `/sign-in?redirect=${encodeURIComponent(redirectTo)}` : '/sign-in'
+      router.push(signInUrl)
     }
   }
 
   return (
     <AuthLayout>
-      <AuthForm 
-        type="signup"
+      <AuthSignUpForm 
         onSubmit={handleRegister}
         isLoading={isLoading}
         error={error}

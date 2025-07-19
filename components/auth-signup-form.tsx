@@ -3,8 +3,7 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react"
-import Link from "next/link"
+import { Eye, EyeOff, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -17,28 +16,31 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import { PasswordStrength } from "@/components/ui/password-strength"
-import { resetPasswordSchema, type ResetPasswordFormData } from "@/lib/validations/auth"
+import { signUpSchema, type SignUpFormData } from "@/lib/validations/auth"
 
-interface ResetPasswordFormProps {
-  onSubmit: (data: ResetPasswordFormData) => Promise<void>
+interface AuthSignUpFormProps {
+  onSubmit: (data: SignUpFormData) => Promise<void>
   isLoading?: boolean
   error?: string
-  success?: string
+  onTypeChange?: (type: 'signin' | 'signup') => void
 }
 
-export function ResetPasswordForm({ 
+export function AuthSignUpForm({ 
   onSubmit, 
   isLoading = false, 
   error,
-  success
-}: ResetPasswordFormProps) {
+  onTypeChange 
+}: AuthSignUpFormProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  const form = useForm<ResetPasswordFormData>({
-    resolver: zodResolver(resetPasswordSchema),
+  const form = useForm<SignUpFormData>({
+    resolver: zodResolver(signUpSchema),
     defaultValues: {
+      username: "",
+      email: "",
       password: "",
       confirmPassword: "",
     },
@@ -46,7 +48,7 @@ export function ResetPasswordForm({
 
   const watchedPassword = form.watch("password")
 
-  const handleSubmit = async (data: ResetPasswordFormData) => {
+  const handleSubmit = async (data: SignUpFormData) => {
     try {
       await onSubmit(data)
     } catch (error) {
@@ -54,40 +56,12 @@ export function ResetPasswordForm({
     }
   }
 
-  if (success) {
-    return (
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Password Reset Successfully</CardTitle>
-          <CardDescription className="text-center">
-            Your password has been updated. You can now sign in with your new password.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="p-4 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
-            {success}
-          </div>
-          
-          <div className="text-center">
-            <Link 
-              href="/sign-in" 
-              className="inline-flex items-center text-sm text-primary hover:underline"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Sign In
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Reset Password</CardTitle>
+        <CardTitle className="text-2xl font-bold text-center">Create Account</CardTitle>
         <CardDescription className="text-center">
-          Enter your new password below.
+          Enter your details to create a new account
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -95,10 +69,48 @@ export function ResetPasswordForm({
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <FormField
               control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Username</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      placeholder="Enter your username"
+                      {...field}
+                      disabled={isLoading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="Enter your email"
+                      {...field}
+                      disabled={isLoading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>New Password</FormLabel>
+                  <FormLabel>Password</FormLabel>
                   <FormControl>
                     <div className="relative">
                       <Input
@@ -138,12 +150,12 @@ export function ResetPasswordForm({
               name="confirmPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Confirm New Password</FormLabel>
+                  <FormLabel>Confirm Password</FormLabel>
                   <FormControl>
                     <div className="relative">
                       <Input
                         type={showConfirmPassword ? "text" : "password"}
-                        placeholder="Confirm your new password"
+                        placeholder="Confirm your password"
                         {...field}
                         disabled={isLoading}
                       />
@@ -182,23 +194,26 @@ export function ResetPasswordForm({
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating password...
+                  Creating account...
                 </>
               ) : (
-                "Update Password"
+                "Create Account"
               )}
             </Button>
           </form>
         </Form>
 
-        <div className="text-center">
-          <Link 
-            href="/sign-in" 
-            className="inline-flex items-center text-sm text-primary hover:underline"
+        <Separator />
+
+        <div className="text-center text-sm">
+          <span className="text-muted-foreground">Already have an account? </span>
+          <button
+            type="button"
+            onClick={() => onTypeChange?.('signin')}
+            className="text-primary hover:underline font-medium"
           >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Sign In
-          </Link>
+            Sign in
+          </button>
         </div>
       </CardContent>
     </Card>

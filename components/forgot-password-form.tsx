@@ -1,105 +1,156 @@
 "use client"
 
-import React, { useState } from 'react'
-import { cn } from "@/lib/utils"
+import { useState } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { Loader2, ArrowLeft } from "lucide-react"
+import Link from "next/link"
+
 import { Button } from "@/components/ui/button"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { ArrowLeft, Mail } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { forgotPasswordSchema, type ForgotPasswordFormData } from "@/lib/validations/auth"
 
 interface ForgotPasswordFormProps {
-  className?: string
-  onSubmit?: (data: { email: string }) => void
+  onSubmit: (data: ForgotPasswordFormData) => Promise<void>
   isLoading?: boolean
   error?: string
   success?: string
-  onBackToSignIn?: () => void
 }
 
-export function ForgotPasswordForm({
-  className,
-  onSubmit,
-  isLoading = false,
+export function ForgotPasswordForm({ 
+  onSubmit, 
+  isLoading = false, 
   error,
-  success,
-  onBackToSignIn,
+  success
 }: ForgotPasswordFormProps) {
-  const [email, setEmail] = useState('')
+  const form = useForm<ForgotPasswordFormData>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
+    },
+  })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (onSubmit) {
-      onSubmit({ email })
+  const handleSubmit = async (data: ForgotPasswordFormData) => {
+    try {
+      await onSubmit(data)
+    } catch (error) {
+      // Error is handled by the parent component
     }
   }
 
-  return (
-    <div className={cn("flex flex-col gap-6", className)}>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Forgot your password?
-          </CardTitle>
-          <CardDescription>
-            Enter your email address and we'll send you a link to reset your password.
+  if (success) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Check Your Email</CardTitle>
+          <CardDescription className="text-center">
+            We've sent a password reset link to your email address.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit}>
-            <div className="flex flex-col gap-6">
-              {error && (
-                <div className="rounded-md bg-destructive/15 px-3 py-2 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
-              
-              {success && (
-                <div className="rounded-md bg-green-100 px-3 py-2 text-sm text-green-800 dark:bg-green-900 dark:text-green-300">
-                  {success}
-                </div>
-              )}
-              
-              <div className="grid gap-3">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-              
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Sending reset link..." : "Send reset link"}
-              </Button>
-            </div>
-            
-            <div className="mt-4 text-center text-sm">
-              <Button
-                type="button"
-                variant="link"
-                className="h-auto p-0 text-sm"
-                onClick={onBackToSignIn}
-                disabled={isLoading}
-              >
-                <ArrowLeft className="mr-1 h-3 w-3" />
-                Back to sign in
-              </Button>
-            </div>
-          </form>
+        <CardContent className="space-y-4">
+          <div className="p-4 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
+            {success}
+          </div>
+          
+          <div className="text-center space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Didn't receive the email? Check your spam folder or try again.
+            </p>
+            <Button 
+              variant="outline" 
+              onClick={() => form.reset()}
+              className="w-full"
+            >
+              Try Again
+            </Button>
+          </div>
+
+          <div className="text-center">
+            <Link 
+              href="/sign-in" 
+              className="inline-flex items-center text-sm text-primary hover:underline"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Sign In
+            </Link>
+          </div>
         </CardContent>
       </Card>
-    </div>
+    )
+  }
+
+  return (
+    <Card className="w-full max-w-md">
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-2xl font-bold text-center">Forgot Password</CardTitle>
+        <CardDescription className="text-center">
+          Enter your email address and we'll send you a link to reset your password.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="Enter your email address"
+                      {...field}
+                      disabled={isLoading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {error && (
+              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                {error}
+              </div>
+            )}
+
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending reset link...
+                </>
+              ) : (
+                "Send Reset Link"
+              )}
+            </Button>
+          </form>
+        </Form>
+
+        <div className="text-center">
+          <Link 
+            href="/sign-in" 
+            className="inline-flex items-center text-sm text-primary hover:underline"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Sign In
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
   )
 } 
