@@ -1,4 +1,5 @@
 import { AuthErrorBoundary } from "@/components/auth-error-boundary"
+import { AuthProvider } from "@/context/auth-context"
 
 export default function AuthLayout({
   children,
@@ -6,8 +7,10 @@ export default function AuthLayout({
   children: React.ReactNode
 }) {
   return (
-    <AuthErrorBoundary>
-      {children}
-    </AuthErrorBoundary>
+    <AuthProvider>
+      <AuthErrorBoundary>
+        {children}
+      </AuthErrorBoundary>
+    </AuthProvider>
   )
 } 

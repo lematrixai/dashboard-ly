@@ -4,9 +4,8 @@ import { AuthSignUpForm } from "@/components/auth-signup-form"
 import { AuthLayout } from "@/components/auth-layout"
 import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { registerUser } from "@/lib/auth"
-import { setUserCookieAction } from "@/lib/auth-actions"
 import { type SignUpFormData } from "@/lib/validations/auth"
+import { useAuth } from "@/context/auth-context"
 
 export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -14,22 +13,15 @@ export default function SignUpPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/Dashboard'
+  const { signUp } = useAuth()
 
   const handleRegister = async (data: SignUpFormData) => {
     setIsLoading(true)
     setError(undefined)
     
     try {
-      // Register with Firebase
-      const user = await registerUser(data.email, data.password, data.username)
-      
-      // Set server-side cookie
-      await setUserCookieAction({
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL
-      })
+      // Use auth-context signUp function
+      await signUp(data.email, data.password)
       
       // Redirect to intended destination or dashboard
       router.push(redirectTo)

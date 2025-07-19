@@ -1,11 +1,10 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getAnalytics } from "firebase/analytics";
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth, connectAuthEmulator, Auth } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+console.log('Firebase initialization started');
+
+// Validate required environment variables
 const firebaseConfig = {
   apiKey: "AIzaSyDes1sTdhL-MvFkpwdTTWzZN0udMZjy9Yo",
   authDomain: "auth-441720.firebaseapp.com",
@@ -14,20 +13,36 @@ const firebaseConfig = {
   messagingSenderId: "750264092727",
   appId: "1:750264092727:web:d33fa34d0b81cd625497b2",
   measurementId: "G-950H8ZTPBC"
-};
+  };    
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Check for missing environment variables
+const missingEnvVars = Object.entries(firebaseConfig)
+    .filter(([_, value]) => !value)
+    .map(([key]) => key);
 
-// Initialize Firebase services
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-
-// Initialize Analytics only on client side
-let analytics;
-if (typeof window !== 'undefined') {
-  analytics = getAnalytics(app);
+if (missingEnvVars.length > 0) {
+    console.error('Missing required environment variables:', missingEnvVars);
+    throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
 }
 
-export { analytics };
-export default app; 
+
+// Initialize Firebase
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const auth: Auth = getAuth(app);
+const db = getFirestore(app);
+
+// Connect to emulators in development
+if (process.env.NODE_ENV === 'development') {
+    console.log('Development environment detected');
+    if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true') {
+        console.log('Connecting to Firebase emulators');
+        connectAuthEmulator(auth, 'http://localhost:9099');
+        connectFirestoreEmulator(db, 'localhost', 8080);
+    }
+}
+
+console.log('Firebase initialization completed successfully');
+
+export { app, auth, db };
+
+

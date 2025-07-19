@@ -7,7 +7,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 import { BreadcrumbProvider } from "@/components/breadcrumb-context";
-import { AuthProvider } from "@/contexts/auth-context";
+import { AuthProvider } from "@/context/auth-context";
 import { ProtectedRoute } from "@/components/protected-route";
 import { AuthErrorBoundary } from "@/components/auth-error-boundary";
 

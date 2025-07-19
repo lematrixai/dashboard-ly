@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { resetUserPassword, getUserByEmail } from './firebaseAdmin'
 
 // Helper function to set secure cookie
 async function setAuthCookie(userData: string, expiresIn: number) {
@@ -93,5 +94,33 @@ export async function getCurrentUserAction() {
   } catch (error) {
     console.error('Get current user error:', error)
     return null
+  }
+}
+
+// Server action to reset password for existing user
+export async function resetExistingUserPasswordAction(email: string, newPassword: string) {
+  try {
+    const result = await resetUserPassword(email, newPassword)
+    return result
+  } catch (error: any) {
+    console.error('Reset password action error:', error)
+    return {
+      success: false,
+      message: error.message || 'Failed to reset password'
+    }
+  }
+}
+
+// Server action to get user info
+export async function getUserInfoAction(email: string) {
+  try {
+    const result = await getUserByEmail(email)
+    return result
+  } catch (error: any) {
+    console.error('Get user info action error:', error)
+    return {
+      success: false,
+      message: error.message || 'Failed to get user info'
+    }
   }
 } 

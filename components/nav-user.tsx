@@ -8,7 +8,7 @@ import {
   LogOut,
   Sparkles,
 } from "lucide-react"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuth } from "@/context/auth-context"
 
 
 import {
