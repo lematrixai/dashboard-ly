@@ -1,5 +1,5 @@
 
-import Dashboard from "./Dashboard/page"
+import Dashboard from "./(root)/Dashboard/page"
 
 export default function Page() {
   return (
