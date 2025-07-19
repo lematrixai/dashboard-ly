@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Poppins, Montserrat } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/ui/theme-provider";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -14,7 +13,6 @@ const montserrat = Montserrat({
   weight: ["400", "500", "600", "700"],
   variable: "--font-montserrat",
 });
-
 
 export const metadata: Metadata = {
   title: "Luxury Admin Dashboard",
@@ -30,13 +28,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head />
       <body
-        className={`${poppins.variable} ${montserrat.variable} poppins  antialiased`}
+        className={`${poppins.variable} ${montserrat.variable} poppins antialiased`}
       >
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-        
-                  {children}
-             
-        </ThemeProvider>
+        {children}
       </body>
     </html>
   );
