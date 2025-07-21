@@ -32,7 +32,7 @@ const data = {
   navInsights: [
     {
       title: "Dashboard",
-      url: "/Dashboard",
+      url: "/",
       icon: BarChart3,
     },
   ],
