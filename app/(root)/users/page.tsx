@@ -139,11 +139,6 @@ const UsersPage = () => {
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Users</h1>
             <p className="text-sm text-muted-foreground sm:text-base">
               Manage user accounts and profiles
-              {user && (
-                <span className="ml-2 text-xs bg-muted px-2 py-1 rounded">
-                  Logged in as: {user.displayName || user.email}
-                </span>
-              )}
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

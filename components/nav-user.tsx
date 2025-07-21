@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import {
   BadgeCheck,
   Bell,
@@ -89,9 +90,11 @@ export function NavUser() {
             <DropdownMenuSeparator />
           
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheck />
-                Account
+              <DropdownMenuItem asChild>
+                <Link href="/profile">
+                  <BadgeCheck />
+                  Account
+                </Link>
               </DropdownMenuItem>
              
             </DropdownMenuGroup>
