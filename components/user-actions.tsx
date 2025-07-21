@@ -162,7 +162,7 @@ export function UserActions({ user, onUserUpdated, onUserDeleted }: UserActionsP
           </Tooltip>
         </TooltipProvider>
         
-        {/* Delete button - always visible but disabled if deleting self */}
+        {/* Delete button - disabled if not admin or deleting self */}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -172,7 +172,7 @@ export function UserActions({ user, onUserUpdated, onUserDeleted }: UserActionsP
                 className="h-8 w-8 text-destructive"
                 onClick={() => setShowDeleteModal(true)}
                 title="Delete user"
-                disabled={isEditingSelf}
+                disabled={!isAdmin || isEditingSelf}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -180,6 +180,8 @@ export function UserActions({ user, onUserUpdated, onUserDeleted }: UserActionsP
             <TooltipContent>
               {isEditingSelf ? (
                 <p>You cannot delete your own account</p>
+              ) : !isAdmin ? (
+                <p>Only administrators can delete users</p>
               ) : (
                 <p>Delete user</p>
               )}

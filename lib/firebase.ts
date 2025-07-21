@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, Auth } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 console.log('Firebase initialization started');
 
@@ -29,19 +30,21 @@ if (missingEnvVars.length > 0) {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth: Auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
-// Connect to emulators in development
-if (process.env.NODE_ENV === 'development') {
-    console.log('Development environment detected');
-    if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true') {
-        console.log('Connecting to Firebase emulators');
-        connectAuthEmulator(auth, 'http://localhost:9099');
-        connectFirestoreEmulator(db, 'localhost', 8080);
-    }
+// Connect to emulators in development (only if explicitly enabled)
+if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true') {
+    console.log('Development environment detected - using emulators');
+    console.log('Connecting to Firebase emulators');
+    connectAuthEmulator(auth, 'http://localhost:9099');
+    connectFirestoreEmulator(db, 'localhost', 8080);
+    connectStorageEmulator(storage, 'localhost', 9199);
+} else {
+    console.log('Using production Firebase services');
 }
 
 console.log('Firebase initialization completed successfully');
 
-export { app, auth, db };
+export { app, auth, db, storage };
 
 
