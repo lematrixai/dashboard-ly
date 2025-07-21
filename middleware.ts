@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 
 // Define protected routes that require authentication
 const protectedRoutes = [
-  '/Dashboard',
+  '/',
   '/destinations',
   '/bookings',
   '/posts',
@@ -26,7 +26,7 @@ export function middleware(request: NextRequest) {
     const userData = request.cookies.get('auth-user')?.value
     const isAuthenticated = !!userData
 
-    // Check if the route is protected
+    // Check if the route is protected (but not auth routes)
     const isProtectedRoute = protectedRoutes.some(route => 
       pathname.startsWith(route)
     )
@@ -36,16 +36,21 @@ export function middleware(request: NextRequest) {
       pathname.startsWith(route)
     )
 
-    // Redirect to sign-in if accessing protected route without authentication
+    // If it's an auth route, handle authentication redirects
+    if (isAuthRoute) {
+      // Redirect to dashboard if accessing auth routes while authenticated
+      if (isAuthenticated) {
+        return NextResponse.redirect(new URL('/', request.url))
+      }
+      // If not authenticated, allow access to auth routes
+      return NextResponse.next()
+    }
+
+    // For non-auth routes, check if they're protected
     if (isProtectedRoute && !isAuthenticated) {
       const signInUrl = new URL('/sign-in', request.url)
       signInUrl.searchParams.set('redirect', pathname)
       return NextResponse.redirect(signInUrl)
-    }
-
-    // Redirect to dashboard if accessing auth routes while authenticated
-    if (isAuthRoute && isAuthenticated) {
-      return NextResponse.redirect(new URL('/Dashboard', request.url))
     }
 
     // Continue with the request

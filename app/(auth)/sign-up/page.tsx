@@ -12,7 +12,7 @@ export default function SignUpPage() {
   const [error, setError] = useState<string>()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirect') || '/Dashboard'
+  const redirectTo = searchParams.get('redirect') || '/'
   const { signUp } = useAuth()
 
   const handleRegister = async (data: SignUpFormData) => {

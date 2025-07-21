@@ -45,26 +45,57 @@ const getAuthErrorMessage = (error: any): string => {
   }
 }
 
+// Professional background colors for avatars (same as in emoji-avatar.tsx)
+const AVATAR_COLORS = [
+  "bg-blue-500", "bg-green-500", "bg-purple-500", "bg-pink-500", "bg-indigo-500",
+  "bg-red-500", "bg-yellow-500", "bg-teal-500", "bg-orange-500", "bg-cyan-500",
+  "bg-emerald-500", "bg-violet-500", "bg-rose-500", "bg-amber-500", "bg-lime-500",
+  "bg-sky-500", "bg-fuchsia-500", "bg-slate-500", "bg-gray-500", "bg-zinc-500"
+]
+
+// Get avatar color for user
+const getAvatarColorForUser = (uid?: string, email?: string) => {
+  const seed = uid || email || "default"
+  const hash = seed.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0)
+    return a & a
+  }, 0)
+  const index = Math.abs(hash) % AVATAR_COLORS.length
+  return AVATAR_COLORS[index]
+}
+
 // Create user document in Firestore
 const createUserDocument = async (user: User, displayName?: string) => {
   try {
+    console.log('Creating user document for:', user.uid)
     const userRef = doc(db, 'users', user.uid)
     const userSnap = await getDoc(userRef)
     
     if (!userSnap.exists()) {
-      await setDoc(userRef, {
+      // Get avatar color for the user
+      const avatarColor = getAvatarColorForUser(user.uid, user.email || undefined)
+      
+      const userData = {
         uid: user.uid,
         email: user.email,
         displayName: displayName || user.displayName || '',
         photoURL: user.photoURL || '',
+        avatarColor: avatarColor, // Store the avatar color
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         role: 'user',
         isActive: true
-      })
+      }
+      
+      console.log('Setting user document with data:', userData)
+      await setDoc(userRef, userData)
+      console.log('User document created successfully')
+    } else {
+      console.log('User document already exists')
     }
   } catch (error) {
     console.error('Error creating user document:', error)
+    // Don't throw the error - just log it so signup can continue
   }
 }
 
@@ -79,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await setPersistence(auth, browserLocalPersistence)
         
         const unsubscribe = onAuthStateChanged(auth, (user) => {
+          console.log('Auth state changed:', user ? 'User logged in' : 'User logged out')
           setUser(user)
           setLoading(false)
         })
@@ -142,12 +174,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
+      console.log('Starting sign out process...')
       await firebaseSignOut(auth)
-      await signOutAction() // This will clear server-side cookie and redirect
+      console.log('Firebase sign out completed')
+      await signOutAction() // This will clear server-side cookie
+      console.log('Server cookie cleared')
       toast.success("Signed out successfully!")
+      
+      // Small delay to ensure cookie is cleared before redirect
+      setTimeout(() => {
+        console.log('Redirecting to sign-in...')
+        router.push('/sign-in') // Client-side redirect to sign-in
+      }, 100)
+      
+      // Fallback redirect in case the first one doesn't work
+      setTimeout(() => {
+        if (window.location.pathname !== '/sign-in') {
+          console.log('Fallback redirect to sign-in...')
+          window.location.href = '/sign-in'
+        }
+      }, 500)
     } catch (error: any) {
+      console.error('Sign out error:', error)
       const errorMessage = getAuthErrorMessage(error)
       toast.error(errorMessage)
+      // Even if there's an error, try to redirect to sign-in
+      router.push('/sign-in')
       throw error
     }
   }

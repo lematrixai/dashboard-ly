@@ -8,9 +8,9 @@ export default function AuthLayout({
 }) {
   return (
     <AuthProvider>
-      <AuthErrorBoundary>
-        {children}
-      </AuthErrorBoundary>
+    <AuthErrorBoundary>
+      {children}
+    </AuthErrorBoundary>
     </AuthProvider>
   )
 } 

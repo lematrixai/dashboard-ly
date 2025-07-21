@@ -38,8 +38,6 @@ export async function signOutAction() {
   try {
     // Clear auth cookie
     await clearAuthCookie()
-    
-    redirect('/sign-in')
   } catch (error: any) {
     console.error('Sign out error:', error)
     throw new Error('Failed to sign out')
