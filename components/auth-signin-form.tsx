@@ -24,14 +24,12 @@ interface AuthSignInFormProps {
   onSubmit: (data: SignInFormData) => Promise<void>
   isLoading?: boolean
   error?: string
-  onTypeChange?: (type: 'signin' | 'signup') => void
 }
 
 export function AuthSignInForm({ 
   onSubmit, 
   isLoading = false, 
-  error,
-  onTypeChange 
+  error
 }: AuthSignInFormProps) {
   const [showPassword, setShowPassword] = useState(false)
 
@@ -61,7 +59,11 @@ export function AuthSignInForm({
       </CardHeader>
       <CardContent className="space-y-4">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form 
+            onSubmit={form.handleSubmit(handleSubmit)} 
+            className="space-y-4"
+            autoComplete="on"
+          >
             <FormField
               control={form.control}
               name="email"
@@ -72,6 +74,7 @@ export function AuthSignInForm({
                     <Input
                       type="email"
                       placeholder="Enter your email"
+                      autoComplete="email"
                       {...field}
                       disabled={isLoading}
                     />
@@ -92,6 +95,7 @@ export function AuthSignInForm({
                       <Input
                         type={showPassword ? "text" : "password"}
                         placeholder="Enter your password"
+                        autoComplete="current-password"
                         {...field}
                         disabled={isLoading}
                       />
@@ -152,14 +156,9 @@ export function AuthSignInForm({
           <Separator />
 
           <div className="text-center text-sm">
-            <span className="text-muted-foreground">Don't have an account? </span>
-            <button
-              type="button"
-              onClick={() => onTypeChange?.('signup')}
-              className="text-primary hover:underline font-medium"
-            >
-              Sign up
-            </button>
+            <span className="text-muted-foreground">
+              Contact your administrator to create an account
+            </span>
           </div>
         </div>
       </CardContent>

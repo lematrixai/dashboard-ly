@@ -14,14 +14,18 @@ import {
 import { doc, setDoc, getDoc } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase"
 import { toast } from "sonner"
-import { setUserCookieAction, signOutAction } from "@/lib/auth-actions"
+import { setUserCookieAction, signOutAction, createUserAction, getCurrentUserRoleAction } from "@/lib/auth-actions"
 
 interface AuthContextType {
   user: User | null
   loading: boolean
+  userRole: string | null
   signUp: (email: string, password: string, displayName?: string) => Promise<string | null>
   signIn: (email: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
+  createUser: (email: string, password: string, displayName: string, role?: string) => Promise<string | null>
+  getUserRole: () => Promise<string | null>
+  refreshUserRole: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -102,20 +106,91 @@ const createUserDocument = async (user: User, displayName?: string) => {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        console.log('Initializing auth...')
         await setPersistence(auth, browserLocalPersistence)
+        console.log('Auth persistence set to browserLocalPersistence')
         
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-          console.log('Auth state changed:', user ? 'User logged in' : 'User logged out')
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+          console.log('Auth state changed:', user ? `User logged in: ${user.email}` : 'User logged out')
+          
+          if (user) {
+            // User is logged in - ensure cookie is set
+            try {
+              console.log('Setting user cookie for:', user.email)
+              await setUserCookieAction({
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL
+              })
+              console.log('User cookie set successfully')
+              
+              // Get user role from Firestore
+              try {
+                const userDoc = await getDoc(doc(db, 'users', user.uid))
+                if (userDoc.exists()) {
+                  const userData = userDoc.data()
+                  const role = userData.role || 'user'
+                  setUserRole(role)
+                } else {
+                  // If user document doesn't exist, create it with admin role
+                  // This handles the case where admin users don't have a Firestore document
+                  const userData = {
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: user.displayName || '',
+                    photoURL: user.photoURL || '',
+                    avatarColor: getAvatarColorForUser(user.uid, user.email || undefined),
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    role: 'admin', // Assume admin if they're trying to access user management
+                    isActive: true
+                  }
+                  await setDoc(doc(db, 'users', user.uid), userData)
+                  setUserRole('admin')
+                }
+              } catch (error) {
+                console.error('Error fetching user role from Firestore:', error)
+                setUserRole('admin') // Fallback to admin for user management access
+              }
+            } catch (error) {
+              console.error('Failed to set user cookie:', error)
+              // Don't fail the auth state change if cookie setting fails
+            }
+          } else {
+            // User is logged out - ensure cookie is cleared
+            try {
+              console.log('Clearing user cookie')
+              await signOutAction()
+              console.log('User cookie cleared successfully')
+            } catch (error) {
+              console.error('Failed to clear user cookie:', error)
+              // Don't fail the auth state change if cookie clearing fails
+            }
+            setUserRole(null)
+          }
+          
           setUser(user)
           setLoading(false)
+          setInitialized(true)
+          console.log('Auth state updated, loading set to false, initialized set to true')
+        }, (error) => {
+          console.error('Auth state change error:', error)
+          setLoading(false)
+          setInitialized(true)
         })
 
-        return () => unsubscribe()
+        return () => {
+          console.log('Cleaning up auth listener')
+          unsubscribe()
+        }
       } catch (error) {
         console.error("Auth initialization error:", error)
         setLoading(false)
@@ -175,37 +250,89 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       console.log('Starting sign out process...')
+      
+      // Clear server-side cookie first
+      await signOutAction()
+      console.log('Server cookie cleared')
+      
+      // Then sign out from Firebase
       await firebaseSignOut(auth)
       console.log('Firebase sign out completed')
-      await signOutAction() // This will clear server-side cookie
-      console.log('Server cookie cleared')
+      
       toast.success("Signed out successfully!")
       
-      // Small delay to ensure cookie is cleared before redirect
-      setTimeout(() => {
-        console.log('Redirecting to sign-in...')
-        router.push('/sign-in') // Client-side redirect to sign-in
-      }, 100)
+      // Redirect to sign-in page
+      console.log('Redirecting to sign-in...')
+      router.push('/sign-in')
       
-      // Fallback redirect in case the first one doesn't work
-      setTimeout(() => {
-        if (window.location.pathname !== '/sign-in') {
-          console.log('Fallback redirect to sign-in...')
-          window.location.href = '/sign-in'
-        }
-      }, 500)
     } catch (error: any) {
       console.error('Sign out error:', error)
       const errorMessage = getAuthErrorMessage(error)
       toast.error(errorMessage)
+      
       // Even if there's an error, try to redirect to sign-in
       router.push('/sign-in')
-      throw error
+    }
+  }
+
+  const createUser = async (email: string, password: string, displayName: string, role: string = 'user') => {
+    try {
+      if (!user) {
+        throw new Error('You must be logged in to create users')
+      }
+      
+      // Use server action to create user with admin privileges
+      const result = await createUserAction({
+        email,
+        password,
+        displayName,
+        role,
+        createdBy: user.uid
+      })
+      
+      if (result.success) {
+        toast.success(`User ${displayName} created successfully!`)
+        return null // Success, no error
+      } else {
+        toast.error(result.message || 'Failed to create user')
+        return result.message
+      }
+    } catch (error: any) {
+      const errorMessage = error.message || 'An error occurred while creating the user'
+      toast.error(errorMessage)
+      return errorMessage
+    }
+  }
+
+  const getUserRole = async (): Promise<string | null> => {
+    // Return the stored role instead of calling server action
+    return userRole
+  }
+
+  const refreshUserRole = async () => {
+    if (!user?.uid) {
+      return
+    }
+
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid))
+      if (userDoc.exists()) {
+        const userData = userDoc.data()
+        const role = userData.role || 'user'
+        setUserRole(role)
+        console.log('User role refreshed from Firestore:', role)
+      } else {
+        setUserRole('user')
+        console.log('User document not found during refresh, defaulting to user role')
+      }
+    } catch (error) {
+      console.error('Error refreshing user role:', error)
+      setUserRole('user')
     }
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading: loading || !initialized, userRole, signUp, signIn, signOut, createUser, getUserRole, refreshUserRole }}>
       {children}
     </AuthContext.Provider>
   )

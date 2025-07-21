@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useEffect } from 'react'
-import { Search, Plus, Users, Edit, Trash2, Eye, Mail, Calendar } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { Search, Plus, Users, Edit, Trash2, Eye, Mail, Calendar, X, Loader2, RefreshCw, UserPlus, Filter, Users2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -15,9 +15,33 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useBreadcrumb } from '@/components/breadcrumb-context'
+import { CreateUserForm } from '@/components/create-user-form'
+import { UserActions } from '@/components/user-actions'
+import { collection, getDocs, query, orderBy } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import { toast } from 'sonner'
+import { useAuth } from '@/context/auth-context'
+
+interface User {
+  uid: string
+  email: string | null
+  displayName: string
+  role: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  avatarColor?: string
+  photoURL?: string
+  createdBy?: string
+}
 
 const UsersPage = () => {
   const { setBreadcrumbs } = useBreadcrumb()
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const { user } = useAuth()
 
   useEffect(() => {
     setBreadcrumbs([
@@ -26,187 +50,295 @@ const UsersPage = () => {
     ])
   }, [setBreadcrumbs])
 
-  const users = [
-    {
-      id: 1,
-      name: "John Smith",
-      email: "john.smith@example.com",
-      role: "Customer",
-      status: "Active",
-      joinDate: "2023-06-15",
-      lastLogin: "2024-01-20",
-      bookings: 3,
-    },
-    {
-      id: 2,
-      name: "Sarah Johnson",
-      email: "sarah.johnson@example.com",
-      role: "Customer",
-      status: "Active",
-      joinDate: "2023-08-22",
-      lastLogin: "2024-01-18",
-      bookings: 1,
-    },
-    {
-      id: 3,
-      name: "Mike Davis",
-      email: "mike.davis@example.com",
-      role: "Admin",
-      status: "Active",
-      joinDate: "2023-01-10",
-      lastLogin: "2024-01-22",
-      bookings: 0,
-    },
-    {
-      id: 4,
-      name: "Emily Wilson",
-      email: "emily.wilson@example.com",
-      role: "Customer",
-      status: "Inactive",
-      joinDate: "2023-11-05",
-      lastLogin: "2023-12-15",
-      bookings: 2,
-    },
-  ]
+  // Fetch users from Firestore
+  const fetchUsers = async () => {
+    try {
+      setLoading(true)
+      const usersRef = collection(db, 'users')
+      const q = query(usersRef, orderBy('createdAt', 'desc'))
+      const querySnapshot = await getDocs(q)
+      
+      const usersData: User[] = []
+      querySnapshot.forEach((doc) => {
+        const data = doc.data()
+        usersData.push({
+          uid: doc.id,
+          email: data.email,
+          displayName: data.displayName || 'Unknown User',
+          role: data.role || 'user',
+          isActive: data.isActive !== false, // Default to true
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+          avatarColor: data.avatarColor,
+          photoURL: data.photoURL,
+          createdBy: data.createdBy
+        })
+      })
+      
+      setUsers(usersData)
+    } catch (error) {
+      console.error('Error fetching users:', error)
+      toast.error('Failed to load users. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  // Filter users based on search term
+  const filteredUsers = users.filter(user =>
+    user.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.role.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+    } catch {
+      return 'Unknown'
+    }
+  }
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'Admin':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
-      case 'Customer':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+      case 'admin':
+        return 'bg-purple-100 text-purple-800 border-purple-200'
+      case 'user':
+        return 'bg-blue-100 text-blue-800 border-blue-200'
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
+        return 'bg-gray-100 text-gray-800 border-gray-200'
     }
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Active':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+        return 'bg-green-100 text-green-800 border-green-200'
       case 'Inactive':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+        return 'bg-red-100 text-red-800 border-red-200'
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
+        return 'bg-gray-100 text-gray-800 border-gray-200'
     }
   }
 
   return (
     <div className="space-y-6 py-4 pt-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Users</h1>
-          <p className="text-muted-foreground">Manage user accounts and profiles</p>
-        </div>
-        <Button className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Add User
-        </Button>
-      </div>
+      {/* Header Section */}
+      <div className="space-y-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Users</h1>
+            <p className="text-sm text-muted-foreground sm:text-base">
+              Manage user accounts and profiles
+              {user && (
+                <span className="ml-2 text-xs bg-muted px-2 py-1 rounded">
+                  Logged in as: {user.displayName || user.email}
+                </span>
+              )}
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search users..."
-            className="pl-8"
-          />
+            <Button 
+              variant="outline"
+              onClick={fetchUsers}
+              disabled={loading}
+              className="w-full sm:w-auto"
+            >
+              {loading ? (
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            <Button 
+              onClick={() => setShowCreateForm(true)}
+              className="w-full sm:w-auto"
+            >
+              Add User
+            </Button>
+          </div>
+        </div>
+
+        {/* Search Section */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              className="pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
+                onClick={() => setSearchTerm('')}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Users</CardTitle>
+          <CardTitle className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+          <span>Users ({filteredUsers.length})</span>
+          {searchTerm && (
+            <span className="text-sm font-normal text-muted-foreground">
+              filtered from {users.length} total
+            </span>
+          )}
+        </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <div className="min-w-[1000px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Loading users...</span>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-muted-foreground mb-2">
+                {searchTerm ? 'No users found' : 'No users yet'}
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                {searchTerm ? 'Try adjusting your search terms' : 'Create your first user to get started'}
+              </p>
+              {!searchTerm && (
+                <Button onClick={() => setShowCreateForm(true)}>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Create First User
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="min-w-[800px] lg:min-w-[1000px]">
+                <Table>
+                  <TableHeader>
+                                      <TableRow>
                     <TableHead>User</TableHead>
-                    <TableHead className="hidden md:table-cell">Role</TableHead>
-                    <TableHead className="hidden md:table-cell">Status</TableHead>
-                    <TableHead className="hidden md:table-cell">Join Date</TableHead>
-                    <TableHead className="hidden md:table-cell">Last Login</TableHead>
-                    <TableHead className="hidden md:table-cell">Bookings</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="hidden sm:table-cell">Role</TableHead>
+                    <TableHead className="hidden sm:table-cell">Status</TableHead>
+                    <TableHead className="hidden md:table-cell">Created</TableHead>
+                    <TableHead className="hidden lg:table-cell">Updated</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>
-                        <div className="flex items-center space-x-3">
-                          <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium truncate">{user.name}</div>
-                            <div className="text-sm text-muted-foreground md:hidden">
-                              <span className="inline-flex items-center gap-1">
-                                <Badge variant="outline" className="text-xs px-1.5 py-0.5">
-                                  {user.role}
-                                </Badge>
-                                <span>•</span>
-                                <Badge className={getStatusColor(user.status)}>
-                                  {user.status}
-                                </Badge>
-                                <span>•</span>
-                                <span>{user.bookings} bookings</span>
-                              </span>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.map((user) => (
+                      <TableRow key={user.uid}>
+                        <TableCell>
+                          <div className="flex items-center space-x-3">
+                            <div 
+                              className={`h-8 w-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${user.avatarColor || 'bg-gray-500'}`}
+                            >
+                              {user.displayName.charAt(0).toUpperCase()}
                             </div>
-                            <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                              <Mail className="h-3 w-3" />
-                              <span className="truncate">{user.email}</span>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium truncate">{user.displayName}</div>
+                              <div className="text-sm text-muted-foreground sm:hidden">
+                                <div className="flex flex-wrap items-center gap-1 mt-1">
+                                  <Badge variant="outline" className="text-xs px-1.5 py-0.5">
+                                    {user.role === 'admin' ? 'Admin' : 'User'}
+                                  </Badge>
+                                  <Badge className={getStatusColor(user.isActive ? 'Active' : 'Inactive')}>
+                                    {user.isActive ? 'Active' : 'Inactive'}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>{formatDate(user.createdAt)}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                                <Mail className="h-3 w-3" />
+                                <span className="truncate">{user.email}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge className={getRoleColor(user.role)}>
-                          {user.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge className={getStatusColor(user.status)}>
-                          {user.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span>{user.joinDate}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span>{user.lastLogin}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <span className="font-medium">{user.bookings}</span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end space-x-1">
-                          <Button variant="outline" size="icon" className="h-7 w-7">
-                            <Eye className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="outline" size="icon" className="h-7 w-7">
-                            <Edit className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="outline" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Badge className={getRoleColor(user.role === 'admin' ? 'Admin' : 'User')}>
+                            {user.role === 'admin' ? 'Admin' : 'User'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Badge className={getStatusColor(user.isActive ? 'Active' : 'Inactive')}>
+                            {user.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span>{formatDate(user.createdAt)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span>{formatDate(user.updatedAt)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <UserActions
+                            user={user}
+                            onUserUpdated={fetchUsers}
+                            onUserDeleted={fetchUsers}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Create User Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold">Create New User</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowCreateForm(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-4">
+              <CreateUserForm
+                onSuccess={() => {
+                  setShowCreateForm(false)
+                  fetchUsers() // Refresh the users list
+                }}
+                onCancel={() => setShowCreateForm(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

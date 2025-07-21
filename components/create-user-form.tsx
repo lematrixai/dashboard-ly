@@ -3,7 +3,8 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, UserPlus } from "lucide-react"
+import * as z from "zod"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -15,54 +16,86 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { PasswordStrength } from "@/components/ui/password-strength"
-import { signUpSchema, type SignUpFormData } from "@/lib/validations/auth"
+import { useAuth } from "@/context/auth-context"
 
-interface AuthSignUpFormProps {
-  onSubmit: (data: SignUpFormData) => Promise<void>
-  isLoading?: boolean
-  error?: string
-  onTypeChange?: (type: 'signin' | 'signup') => void
+// Validation schema for creating users
+const createUserSchema = z.object({
+  displayName: z.string().min(2, "Name must be at least 2 characters long"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters long")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number")
+    .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+  role: z.enum(["user", "admin"]),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+})
+
+type CreateUserFormData = z.infer<typeof createUserSchema>
+
+interface CreateUserFormProps {
+  onSuccess?: () => void
+  onCancel?: () => void
 }
 
-export function AuthSignUpForm({ 
-  onSubmit, 
-  isLoading = false, 
-  error,
-  onTypeChange 
-}: AuthSignUpFormProps) {
+export function CreateUserForm({ onSuccess, onCancel }: CreateUserFormProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const { createUser } = useAuth()
 
-  const form = useForm<SignUpFormData>({
-    resolver: zodResolver(signUpSchema),
+  const form = useForm<CreateUserFormData>({
+    resolver: zodResolver(createUserSchema),
     defaultValues: {
-      username: "",
+      displayName: "",
       email: "",
       password: "",
       confirmPassword: "",
+      role: "user",
     },
   })
 
   const watchedPassword = form.watch("password")
 
-  const handleSubmit = async (data: SignUpFormData) => {
+  const handleSubmit = async (data: CreateUserFormData) => {
     try {
-      await onSubmit(data)
-    } catch (error) {
-      // Error is handled by the parent component
+      const errorMessage = await createUser(
+        data.email, 
+        data.password, 
+        data.displayName, 
+        data.role
+      )
       
+      if (!errorMessage) {
+        form.reset()
+        onSuccess?.()
+      }
+    } catch (error) {
+      console.error('Error creating user:', error)
     }
   }
 
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Create Account</CardTitle>
+        <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
+          <UserPlus className="h-6 w-6" />
+          Create User
+        </CardTitle>
         <CardDescription className="text-center">
-          Enter your details to create a new account
+          Add a new team member to the dashboard
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -70,21 +103,19 @@ export function AuthSignUpForm({
           <form 
             onSubmit={form.handleSubmit(handleSubmit)} 
             className="space-y-4"
-            autoComplete="on"
           >
             <FormField
               control={form.control}
-              name="username"
+              name="displayName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Username</FormLabel>
+                  <FormLabel>Full Name</FormLabel>
                   <FormControl>
                     <Input
                       type="text"
-                      placeholder="Enter your username"
-                      autoComplete="username"
+                      placeholder="Enter full name"
+                      autoComplete="name"
                       {...field}
-                      disabled={isLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -101,12 +132,33 @@ export function AuthSignUpForm({
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="Enter your email"
+                      placeholder="Enter email address"
                       autoComplete="email"
                       {...field}
-                      disabled={isLoading}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Role</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a role" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="user">User</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -125,7 +177,6 @@ export function AuthSignUpForm({
                         placeholder="Create a strong password"
                         autoComplete="new-password"
                         {...field}
-                        disabled={isLoading}
                       />
                       <Button
                         type="button"
@@ -133,7 +184,6 @@ export function AuthSignUpForm({
                         size="sm"
                         className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                         onClick={() => setShowPassword(!showPassword)}
-                        disabled={isLoading}
                       >
                         {showPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -163,10 +213,9 @@ export function AuthSignUpForm({
                     <div className="relative">
                       <Input
                         type={showConfirmPassword ? "text" : "password"}
-                        placeholder="Confirm your password"
+                        placeholder="Confirm the password"
                         autoComplete="new-password"
                         {...field}
-                        disabled={isLoading}
                       />
                       <Button
                         type="button"
@@ -174,7 +223,6 @@ export function AuthSignUpForm({
                         size="sm"
                         className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        disabled={isLoading}
                       >
                         {showConfirmPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -189,41 +237,37 @@ export function AuthSignUpForm({
               )}
             />
 
-            {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
-                {error}
-              </div>
-            )}
-
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating account...
-                </>
-              ) : (
-                "Create Account"
+            <div className="flex gap-2 pt-4">
+              <Button 
+                type="submit" 
+                className="flex-1"
+                disabled={form.formState.isSubmitting}
+              >
+                {form.formState.isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Create User
+                  </>
+                )}
+              </Button>
+              {onCancel && (
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={onCancel}
+                  disabled={form.formState.isSubmitting}
+                >
+                  Cancel
+                </Button>
               )}
-            </Button>
+            </div>
           </form>
         </Form>
-
-        <Separator />
-
-        <div className="text-center text-sm">
-          <span className="text-muted-foreground">Already have an account? </span>
-          <button
-            type="button"
-            onClick={() => onTypeChange?.('signin')}
-            className="text-primary hover:underline font-medium"
-          >
-            Sign in
-          </button>
-        </div>
       </CardContent>
     </Card>
   )

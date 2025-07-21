@@ -13,9 +13,13 @@ const protectedRoutes = [
 // Define auth routes that should redirect to dashboard if already authenticated
 const authRoutes = [
   '/sign-in',
-  '/sign-up',
   '/forgot-password',
   '/reset-password',
+]
+
+// Define admin-only routes
+const adminRoutes = [
+  '/sign-up',
 ]
 
 export function middleware(request: NextRequest) {
@@ -25,6 +29,8 @@ export function middleware(request: NextRequest) {
     // Get the user data from cookies
     const userData = request.cookies.get('auth-user')?.value
     const isAuthenticated = !!userData
+
+    console.log(`Middleware: ${pathname} - Auth: ${isAuthenticated ? 'Yes' : 'No'}`)
 
     // Check if the route is protected (but not auth routes)
     const isProtectedRoute = protectedRoutes.some(route => 
@@ -36,18 +42,31 @@ export function middleware(request: NextRequest) {
       pathname.startsWith(route)
     )
 
+    // Check if the route is an admin route
+    const isAdminRoute = adminRoutes.some(route => 
+      pathname.startsWith(route)
+    )
+
     // If it's an auth route, handle authentication redirects
     if (isAuthRoute) {
       // Redirect to dashboard if accessing auth routes while authenticated
       if (isAuthenticated) {
+        console.log(`Middleware: Redirecting authenticated user from ${pathname} to /`)
         return NextResponse.redirect(new URL('/', request.url))
       }
       // If not authenticated, allow access to auth routes
       return NextResponse.next()
     }
 
+    // If it's an admin route, block access (signup is now admin-only)
+    if (isAdminRoute) {
+      console.log(`Middleware: Blocking access to admin route ${pathname}`)
+      return NextResponse.redirect(new URL('/sign-in', request.url))
+    }
+
     // For non-auth routes, check if they're protected
     if (isProtectedRoute && !isAuthenticated) {
+      console.log(`Middleware: Redirecting unauthenticated user from ${pathname} to /sign-in`)
       const signInUrl = new URL('/sign-in', request.url)
       signInUrl.searchParams.set('redirect', pathname)
       return NextResponse.redirect(signInUrl)
@@ -57,8 +76,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   } catch (error) {
     console.error('Middleware error:', error)
-    // On error, allow the request to continue
-    return NextResponse.next()
+    // On error, redirect to sign-in for safety
+    return NextResponse.redirect(new URL('/sign-in', request.url))
   }
 }
 

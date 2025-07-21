@@ -36,12 +36,7 @@ export default function SignInPage() {
     }
   }
 
-  const handleTypeChange = (type: 'signin' | 'signup') => {
-    if (type === 'signup') {
-      const signUpUrl = redirectTo ? `/sign-up?redirect=${encodeURIComponent(redirectTo)}` : '/sign-up'
-      router.push(signUpUrl)
-    }
-  }
+  // Removed handleTypeChange since signup is now admin-only
 
 
 
@@ -52,7 +47,6 @@ export default function SignInPage() {
           onSubmit={handleLogin}
           isLoading={isLoading}
           error={error}
-          onTypeChange={handleTypeChange}
         />
       </div>
     </AuthLayout>
