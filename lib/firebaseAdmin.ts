@@ -1,7 +1,19 @@
+'use server';
+
 import { getApps, initializeApp, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string);
+// Check if service account key exists
+if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+  throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is required');
+}
+
+let serviceAccount;
+try {
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+} catch (error: any) {
+  throw new Error('Invalid FIREBASE_SERVICE_ACCOUNT_KEY: Must be valid JSON');
+}
 
 const adminApp = getApps().length === 0
   ? initializeApp({
@@ -11,7 +23,8 @@ const adminApp = getApps().length === 0
 
 const adminAuth = getAuth(adminApp);
 
-export { adminApp };
+// Don't export adminApp from a "use server" file
+// export { adminApp };
 
 export async function resetUserPassword(email: string, newPassword: string) {
   try {

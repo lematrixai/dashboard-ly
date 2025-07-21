@@ -11,15 +11,16 @@ import {
   setPersistence,
   browserLocalPersistence
 } from "firebase/auth"
-import { auth } from "@/lib/firebase"
+import { doc, setDoc, getDoc } from "firebase/firestore"
+import { auth, db } from "@/lib/firebase"
 import { toast } from "sonner"
 import { setUserCookieAction, signOutAction } from "@/lib/auth-actions"
 
 interface AuthContextType {
   user: User | null
   loading: boolean
-  signUp: (email: string, password: string) => Promise<void>
-  signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string, displayName?: string) => Promise<string | null>
+  signIn: (email: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
 }
 
@@ -34,13 +35,36 @@ const getAuthErrorMessage = (error: any): string => {
     case 'auth/wrong-password':
       return 'Incorrect password'
     case 'auth/email-already-in-use':
-      return 'An account already exists with this email'
+      return 'An account with this email already exists. Please sign in instead or use a different email address.'
     case 'auth/weak-password':
       return 'Password should be at least 6 characters'
     case 'auth/invalid-email':
       return 'Please enter a valid email address'
     default:
       return error.message || 'An error occurred during authentication'
+  }
+}
+
+// Create user document in Firestore
+const createUserDocument = async (user: User, displayName?: string) => {
+  try {
+    const userRef = doc(db, 'users', user.uid)
+    const userSnap = await getDoc(userRef)
+    
+    if (!userSnap.exists()) {
+      await setDoc(userRef, {
+        uid: user.uid,
+        email: user.email,
+        displayName: displayName || user.displayName || '',
+        photoURL: user.photoURL || '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        role: 'user',
+        isActive: true
+      })
+    }
+  } catch (error) {
+    console.error('Error creating user document:', error)
   }
 }
 
@@ -69,24 +93,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializeAuth()
   }, [])
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, displayName?: string) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      
+      // Create user document in Firestore
+      await createUserDocument(userCredential.user, displayName)
       
       // Set server-side cookie
       await setUserCookieAction({
         uid: userCredential.user.uid,
         email: userCredential.user.email,
-        displayName: userCredential.user.displayName,
+        displayName: displayName || userCredential.user.displayName,
         photoURL: userCredential.user.photoURL
       })
       
       router.push("/")
       toast.success("Account created successfully!")
+      return null // Success, no error
     } catch (error: any) {
       const errorMessage = getAuthErrorMessage(error)
       toast.error(errorMessage)
-      throw error
+      return errorMessage // Return the useful error message
     }
   }
 
@@ -104,10 +132,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       router.push("/")
       toast.success("Signed in successfully!")
+      return null // Success, no error
     } catch (error: any) {
       const errorMessage = getAuthErrorMessage(error)
       toast.error(errorMessage)
-      throw error
+      return errorMessage // Return the useful error message
     }
   }
 

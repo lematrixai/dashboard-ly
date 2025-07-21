@@ -21,12 +21,15 @@ export default function SignUpPage() {
     
     try {
       // Use auth-context signUp function
-      await signUp(data.email, data.password)
+      const errorMessage = await signUp(data.email, data.password, data.username)
       
-      // Redirect to intended destination or dashboard
-      router.push(redirectTo)
+      if (errorMessage) {
+        setError(errorMessage)
+      }
+      // If no error message, signup was successful and user was redirected
     } catch (err: any) {
-      setError(err.message || 'Failed to create account')
+      console.error('Unexpected error:', err)
+      setError('An unexpected error occurred')
     } finally {
       setIsLoading(false)
     }

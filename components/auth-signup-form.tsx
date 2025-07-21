@@ -53,6 +53,7 @@ export function AuthSignUpForm({
       await onSubmit(data)
     } catch (error) {
       // Error is handled by the parent component
+      
     }
   }
 

@@ -22,13 +22,15 @@ export default function SignInPage() {
     
     try {
       // Use auth-context signIn function
-      await signIn(data.email, data.password)
+      const errorMessage = await signIn(data.email, data.password)
       
-      // Redirect to intended destination or dashboard
-      router.push(redirectTo)
+      if (errorMessage) {
+        setError(errorMessage)
+      }
+      // If no error message, signin was successful and user was redirected
     } catch (err: any) {
-      console.error('Login error in component:', err);
-      setError(err.message || 'Failed to sign in')
+      console.error('Unexpected error:', err)
+      setError('An unexpected error occurred')
     } finally {
       setIsLoading(false)
     }
@@ -48,9 +50,9 @@ export default function SignInPage() {
     const result = await resetExistingUserPasswordAction('erickbale360@gmail.com', newPassword);
     console.log('Password reset result:', result);
     if (result.success) {
-      setError(`Password reset successful! Use: erickbale360@gmail.com / ${newPassword}`);
+      console.log(`Password reset successful! Use: erickbale360@gmail.com / ${newPassword}`);
     } else {
-      setError(`Password reset failed: ${result.message}`);
+      console.log(`Password reset failed: ${result.message}`);
     }
   }
 
@@ -60,9 +62,9 @@ export default function SignInPage() {
     const result = await getUserInfoAction('erickbale360@gmail.com');
     console.log('User info result:', result);
     if (result.success && 'user' in result) {
-      setError(`User found: ${JSON.stringify(result.user, null, 2)}`);
+      console.log(`User found: ${JSON.stringify(result.user, null, 2)}`);
     } else {
-      setError(`Get user info failed: ${result.message}`);
+      console.log(`Get user info failed: ${result.message}`);
     }
   }
 
