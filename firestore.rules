@@ -11,5 +11,17 @@ service cloud.firestore {
     match /users/{document=**} {
       allow read: if request.auth != null;
     }
+    
+    // Posts collection rules
+    match /posts/{postId} {
+      // Allow authenticated users to create posts
+      allow create: if request.auth != null;
+      
+      // Allow users to read all posts
+      allow read: if request.auth != null;
+      
+      // Allow users to update/delete their own posts
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.authorId;
+    }
   }
 } 

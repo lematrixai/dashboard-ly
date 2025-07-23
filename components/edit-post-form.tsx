@@ -25,7 +25,7 @@ import {
   Eye,
   Play
 } from "lucide-react"
-import { collection, addDoc, serverTimestamp } from "firebase/firestore"
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { uploadToCloudinary } from "@/lib/cloudinary"
 import { MediaPreviewDrawer } from "./media-preview-drawer"
@@ -50,14 +50,44 @@ interface MediaFile {
   url?: string
 }
 
-interface CreatePostFormProps {
+interface ExistingMedia {
+  id: string
+  url: string
+  type: 'image' | 'video'
+}
+
+interface Post {
+  id: string
+  title: string
+  content: string
+  authorName: string
+  authorId: string
+  status: 'draft' | 'published' | 'scheduled'
+  category: string
+  views: number
+  mediaUrls: string[]
+  createdAt: any
+  updatedAt: any
+  publishedAt: any
+  scheduledDate?: string
+}
+
+interface EditPostFormProps {
+  post: Post
   onSuccess: () => void
   onCancel: () => void
 }
 
-export function CreatePostForm({ onSuccess, onCancel }: CreatePostFormProps) {
+export function EditPostForm({ post, onSuccess, onCancel }: EditPostFormProps) {
   const [loading, setLoading] = useState(false)
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([])
+  const [existingMedia, setExistingMedia] = useState<ExistingMedia[]>(
+    post.mediaUrls.map((url, index) => ({
+      id: `existing-${index}`,
+      url,
+      type: url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? 'image' : 'video'
+    }))
+  )
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const [showMediaPreview, setShowMediaPreview] = useState(false)
   const [selectedMedia, setSelectedMedia] = useState<{url: string, type: 'image' | 'video', name: string} | null>(null)
@@ -73,10 +103,11 @@ export function CreatePostForm({ onSuccess, onCancel }: CreatePostFormProps) {
   } = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
     defaultValues: {
-      title: "",
-      content: "",
-      category: "Travel Guide",
-      status: "draft"
+      title: post.title,
+      content: post.content,
+      category: post.category as any,
+      status: post.status,
+      scheduledDate: post.scheduledDate || undefined
     }
   })
 
@@ -126,6 +157,10 @@ export function CreatePostForm({ onSuccess, onCancel }: CreatePostFormProps) {
     })
   }
 
+  const removeExistingMedia = (id: string) => {
+    setExistingMedia(prev => prev.filter(m => m.id !== id))
+  }
+
   const uploadMediaToCloudinary = async (file: File): Promise<string> => {
     return await uploadToCloudinary(file, 'posts')
   }
@@ -156,37 +191,40 @@ export function CreatePostForm({ onSuccess, onCancel }: CreatePostFormProps) {
 
   const onSubmit = async (data: PostFormData) => {
     if (!user) {
-      toast.error("You must be logged in to create a post")
+      toast.error("You must be logged in to edit a post")
       return
     }
 
     setLoading(true)
     try {
-      // Upload all media files first
-      const mediaUrls = await uploadAllMedia()
+      // Upload new media files first
+      const newMediaUrls = await uploadAllMedia()
 
-      // Create post document
-      const postData = {
+      // Combine existing and new media URLs
+      const allMediaUrls = [
+        ...existingMedia.map(m => m.url),
+        ...newMediaUrls
+      ]
+
+      // Update post document
+      const postRef = doc(db, 'posts', post.id)
+      const updateData = {
         title: data.title,
         content: data.content,
         category: data.category,
         status: data.status,
         scheduledDate: data.status === 'scheduled' ? data.scheduledDate : null,
-        mediaUrls,
-        authorId: user.uid,
-        authorName: user.displayName || user.email,
-        views: 0,
-        createdAt: serverTimestamp(),
+        mediaUrls: allMediaUrls,
         updatedAt: serverTimestamp(),
-        publishedAt: data.status === 'published' ? serverTimestamp() : null
+        publishedAt: data.status === 'published' ? serverTimestamp() : post.publishedAt
       }
 
-      await addDoc(collection(db, 'posts'), postData)
+      await updateDoc(postRef, updateData)
 
       onSuccess()
     } catch (error) {
-      console.error("Error creating post:", error)
-      toast.error("Failed to create post")
+      console.error("Error updating post:", error)
+      toast.error("Failed to update post")
     } finally {
       setLoading(false)
     }
@@ -303,20 +341,138 @@ export function CreatePostForm({ onSuccess, onCancel }: CreatePostFormProps) {
           className="hidden"
         />
 
+        {/* Existing Media */}
+        {existingMedia.length > 0 && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium">Existing Media</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {existingMedia.map((media) => (
+                <div key={media.id} className="relative group">
+                  <div className="aspect-square rounded-lg border-2 border-dashed border-gray-300 overflow-hidden bg-muted/20">
+                    {media.type === 'image' ? (
+                      <>
+                        <img
+                          src={media.url}
+                          alt="Existing media"
+                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="bg-white/90 text-black hover:bg-white"
+                              onClick={() => {
+                                setSelectedMedia({
+                                  url: media.url,
+                                  type: media.type,
+                                  name: `Existing ${media.type}`
+                                })
+                                setShowMediaPreview(true)
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <video
+                          src={media.url}
+                          className="w-full h-full object-cover"
+                          muted
+                          preload="metadata"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="bg-white/90 text-black hover:bg-white"
+                              onClick={() => {
+                                setSelectedMedia({
+                                  url: media.url,
+                                  type: media.type,
+                                  name: `Existing ${media.type}`
+                                })
+                                setShowMediaPreview(true)
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="bg-white/90 text-black hover:bg-white"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                const video = e.currentTarget.parentElement?.parentElement?.parentElement?.querySelector('video')
+                                if (video) {
+                                  if (video.paused) {
+                                    video.play()
+                                  } else {
+                                    video.pause()
+                                  }
+                                }
+                              }}
+                            >
+                              <Play className="h-4 w-4 mr-1" />
+                              Play
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    
+                    {/* File type indicator */}
+                    <div className="absolute top-2 left-2">
+                      {media.type === 'image' ? (
+                        <ImageIcon className="h-4 w-4 text-white bg-black/50 rounded p-0.5" />
+                      ) : (
+                        <Video className="h-4 w-4 text-white bg-black/50 rounded p-0.5" />
+                      )}
+                    </div>
+
+                    {/* Remove button */}
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => removeExistingMedia(media.id)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* New Media Files */}
         {mediaFiles.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {mediaFiles.map((mediaFile) => (
-              <div key={mediaFile.id} className="relative group">
-                <div className="aspect-square rounded-lg border-2 border-dashed border-gray-300 overflow-hidden bg-muted/20">
-                  {mediaFile.type === 'image' ? (
-                    <>
-                      <img
-                        src={mediaFile.preview}
-                        alt="Preview"
-                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium">New Media Files</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {mediaFiles.map((mediaFile) => (
+                <div key={mediaFile.id} className="relative group">
+                  <div className="aspect-square rounded-lg border-2 border-dashed border-gray-300 overflow-hidden bg-muted/20">
+                    {mediaFile.type === 'image' ? (
+                      <>
+                        <img
+                          src={mediaFile.preview}
+                          alt="Preview"
+                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
                               type="button"
                               variant="secondary"
@@ -335,18 +491,18 @@ export function CreatePostForm({ onSuccess, onCancel }: CreatePostFormProps) {
                               Preview
                             </Button>
                           </div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <video
-                        src={mediaFile.preview}
-                        className="w-full h-full object-cover"
-                        muted
-                        preload="metadata"
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <video
+                          src={mediaFile.preview}
+                          className="w-full h-full object-cover"
+                          muted
+                          preload="metadata"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                             <Button
                               type="button"
                               variant="secondary"
@@ -385,47 +541,48 @@ export function CreatePostForm({ onSuccess, onCancel }: CreatePostFormProps) {
                               Play
                             </Button>
                           </div>
+                        </div>
+                      </>
+                    )}
+                    
+                    {/* File type indicator */}
+                    <div className="absolute top-2 left-2">
+                      {mediaFile.type === 'image' ? (
+                        <ImageIcon className="h-4 w-4 text-white bg-black/50 rounded p-0.5" />
+                      ) : (
+                        <Video className="h-4 w-4 text-white bg-black/50 rounded p-0.5" />
+                      )}
+                    </div>
+
+                    {/* Remove button */}
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => removeMediaFile(mediaFile.id)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+
+                    {/* Upload progress */}
+                    {mediaFile.uploadProgress > 0 && mediaFile.uploadProgress < 100 && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center">
+                        {mediaFile.uploadProgress}%
                       </div>
-                    </>
-                  )}
-                  
-                  {/* File type indicator */}
-                  <div className="absolute top-2 left-2">
-                    {mediaFile.type === 'image' ? (
-                      <ImageIcon className="h-4 w-4 text-white bg-black/50 rounded p-0.5" />
-                    ) : (
-                      <Video className="h-4 w-4 text-white bg-black/50 rounded p-0.5" />
                     )}
                   </div>
-
-                  {/* Remove button */}
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => removeMediaFile(mediaFile.id)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-
-                  {/* Upload progress */}
-                  {mediaFile.uploadProgress > 0 && mediaFile.uploadProgress < 100 && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center">
-                      {mediaFile.uploadProgress}%
-                    </div>
-                  )}
+                  
+                  <p className="text-xs text-muted-foreground mt-1 truncate line-clamp-1">
+                    {mediaFile.file.name}
+                  </p>
                 </div>
-                
-                <p className="text-xs text-muted-foreground mt-1 truncate line-clamp-1">
-                  {mediaFile.file.name}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 
-        {mediaFiles.length === 0 && (
+        {existingMedia.length === 0 && mediaFiles.length === 0 && (
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
             <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-sm text-gray-600 mb-2">
@@ -458,10 +615,10 @@ export function CreatePostForm({ onSuccess, onCancel }: CreatePostFormProps) {
           {loading || uploadingMedia ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {uploadingMedia ? "Uploading..." : "Creating..."}
+              {uploadingMedia ? "Uploading..." : "Updating..."}
             </>
           ) : (
-            "Create Post"
+            "Update Post"
           )}
         </Button>
       </div>

@@ -21,6 +21,7 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/auth-context'
+import { ResponsiveDialog } from '@/components/ui/responsive-dialog'
 
 interface User {
   uid: string
@@ -246,8 +247,8 @@ const UsersPage = () => {
                             >
                               {user.displayName.charAt(0).toUpperCase()}
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium truncate">{user.displayName}</div>
+                            <div className="min-w-0 flex-1 overflow-hidden">
+                              <div className="font-medium truncate line-clamp-1">{user.displayName}</div>
                               <div className="text-sm text-muted-foreground sm:hidden">
                                 <div className="flex flex-wrap items-center gap-1 mt-1">
                                   <Badge variant="outline" className="text-xs px-1.5 py-0.5">
@@ -263,8 +264,8 @@ const UsersPage = () => {
                                 </div>
                               </div>
                               <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                                <Mail className="h-3 w-3" />
-                                <span className="truncate">{user.email}</span>
+                                <Mail className="h-3 w-3 flex-shrink-0" />
+                                <span className="truncate line-clamp-1">{user.email}</span>
                               </div>
                             </div>
                           </div>
@@ -309,31 +310,19 @@ const UsersPage = () => {
       </Card>
 
       {/* Create User Modal */}
-      {showCreateForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Create New User</h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowCreateForm(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="p-4">
-              <CreateUserForm
-                onSuccess={() => {
-                  setShowCreateForm(false)
-                  fetchUsers() // Refresh the users list
-                }}
-                onCancel={() => setShowCreateForm(false)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <ResponsiveDialog 
+        open={showCreateForm} 
+        onOpenChange={setShowCreateForm}
+        title="Create New User"
+      >
+        <CreateUserForm
+          onSuccess={() => {
+            setShowCreateForm(false)
+            fetchUsers() // Refresh the users list
+          }}
+          onCancel={() => setShowCreateForm(false)}
+        />
+      </ResponsiveDialog>
     </div>
   )
 }

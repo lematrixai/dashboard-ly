@@ -113,8 +113,8 @@ const Destinations = () => {
                       <TableCell>
                         <div className="flex items-center space-x-3">
                           <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium truncate">{destination.name}</div>
+                          <div className="min-w-0 flex-1 overflow-hidden">
+                            <div className="font-medium truncate line-clamp-1">{destination.name}</div>
                             <div className="text-sm text-muted-foreground md:hidden">
                               <span className="inline-flex items-center gap-1">
                                 <Badge variant="outline" className="text-xs px-1.5 py-0.5">

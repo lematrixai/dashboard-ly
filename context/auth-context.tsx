@@ -262,7 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast.success("Signed out successfully!")
       
       // Redirect to sign-in page
-      console.log('Redirecting to sign-in...')
+        console.log('Redirecting to sign-in...')
       router.push('/sign-in')
       
     } catch (error: any) {

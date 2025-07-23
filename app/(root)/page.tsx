@@ -47,7 +47,7 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
-
+      
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
           <div className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -86,7 +86,7 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
-
+      
       <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
         <h3 className="text-lg font-semibold mb-4">Debug Information</h3>
         <div className="space-y-2 text-sm">

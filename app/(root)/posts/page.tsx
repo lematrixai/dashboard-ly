@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { Search, Plus, FileText, Edit, Trash2, Eye, Calendar, X, Loader2, RefreshCw } from 'lucide-react'
+import { Search, Plus, FileText, Edit, Trash2, Eye, Calendar, Loader2, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -16,10 +16,12 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useBreadcrumb } from '@/components/breadcrumb-context'
 import { CreatePostForm } from '@/components/create-post-form'
-import { collection, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore'
+import { PostActions } from '@/components/post-actions'
+import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/auth-context'
+import { ResponsiveDialog } from '@/components/ui/responsive-dialog'
 
 interface Post {
   id: string
@@ -125,22 +127,17 @@ const Posts = () => {
     }
   }
 
-  const handleDeletePost = async (postId: string) => {
-    if (!confirm('Are you sure you want to delete this post?')) return
 
-    try {
-      await deleteDoc(doc(db, 'posts', postId))
-      toast.success('Post deleted successfully')
-      fetchPosts() // Refresh the list
-    } catch (error) {
-      console.error('Error deleting post:', error)
-      toast.error('Failed to delete post')
-    }
-  }
 
   const handleCreateSuccess = () => {
     setShowCreateForm(false)
     fetchPosts() // Refresh the list
+    toast.success("Post created successfully!")
+  }
+
+  const handlePostDeleted = () => {
+    fetchPosts() // Refresh the list
+    toast.success("Post deleted successfully!")
   }
 
   return (
@@ -169,9 +166,9 @@ const Posts = () => {
             onClick={() => setShowCreateForm(true)}
             className="w-full sm:w-auto"
           >
-            <Plus className="mr-2 h-4 w-4" />
-            New Post
-          </Button>
+          <Plus className="mr-2 h-4 w-4" />
+          New Post
+        </Button>
         </div>
       </div>
 
@@ -189,28 +186,17 @@ const Posts = () => {
       </div>
 
       {/* Create Post Modal */}
-      {showCreateForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Create New Post</h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowCreateForm(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="p-4">
-              <CreatePostForm 
-                onSuccess={handleCreateSuccess}
-                onCancel={() => setShowCreateForm(false)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <ResponsiveDialog 
+        open={showCreateForm} 
+        onOpenChange={setShowCreateForm}
+        title="Create New Post"
+
+      >
+        <CreatePostForm 
+          onSuccess={handleCreateSuccess}
+          onCancel={() => setShowCreateForm(false)}
+        />
+      </ResponsiveDialog>
 
       <Card>
         <CardHeader>
@@ -254,27 +240,16 @@ const Posts = () => {
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3 flex-1">
                         <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-medium truncate">{post.title}</h3>
-                          <p className="text-sm text-muted-foreground">{post.authorName}</p>
+                        <div className="min-w-0 flex-1 overflow-hidden">
+                          <h3 className="font-medium truncate line-clamp-1 w-20">{post.title}</h3>
+                          <p className="text-sm text-muted-foreground truncate line-clamp-1 ">{post.authorName}</p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <Button variant="outline" size="icon" className="h-8 w-8">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="icon" 
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => handleDeletePost(post.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <PostActions
+                        post={post}
+                        onPostUpdated={fetchPosts}
+                        onPostDeleted={handlePostDeleted}
+                      />
                     </div>
                     
                     <div className="flex flex-wrap gap-2">
@@ -300,80 +275,69 @@ const Posts = () => {
               {/* Desktop View - Table */}
               <div className="hidden md:block overflow-x-auto">
                 <div className="min-w-[800px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Title</TableHead>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
                         <TableHead>Author</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Media</TableHead>
                         <TableHead>Views</TableHead>
                         <TableHead>Created</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                       {filteredPosts.map((post) => (
-                        <TableRow key={post.id}>
-                          <TableCell>
-                            <div className="flex items-center space-x-3">
-                              <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                              <div className="min-w-0 flex-1">
-                                <div className="font-medium truncate">{post.title}</div>
+                    <TableRow key={post.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div className="min-w-0 flex-1 overflow-hidden">
+                            <div className="font-medium truncate line-clamp-1 w-40">{post.title}</div>
                                 <div className="text-xs text-muted-foreground">
                                   Modified: {formatDate(post.updatedAt)}
                                 </div>
-                              </div>
-                            </div>
-                          </TableCell>
+                          </div>
+                        </div>
+                      </TableCell>
                           <TableCell>{post.authorName}</TableCell>
                           <TableCell>
-                            <Badge variant="secondary">{post.category}</Badge>
-                          </TableCell>
+                        <Badge variant="secondary">{post.category}</Badge>
+                      </TableCell>
                           <TableCell>
-                            <Badge className={getStatusColor(post.status)}>
+                        <Badge className={getStatusColor(post.status)}>
                               {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
                               {post.mediaUrls.length} {post.mediaUrls.length === 1 ? 'file' : 'files'}
-                            </Badge>
-                          </TableCell>
+                        </Badge>
+                      </TableCell>
                           <TableCell>
-                            {post.views.toLocaleString()}
-                          </TableCell>
+                        {post.views.toLocaleString()}
+                      </TableCell>
                           <TableCell>
-                            <div className="flex items-center space-x-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
                               <span>{formatDate(post.createdAt)}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end space-x-1">
-                              <Button variant="outline" size="icon" className="h-7 w-7">
-                                <Eye className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="outline" size="icon" className="h-7 w-7">
-                                <Edit className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="icon" 
-                                className="h-7 w-7 text-destructive hover:text-destructive"
-                                onClick={() => handleDeletePost(post.id)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <PostActions
+                          post={post}
+                          onPostUpdated={fetchPosts}
+                          onPostDeleted={handlePostDeleted}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
             </>
           )}
         </CardContent>

@@ -2,6 +2,46 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### Environment Variables
+
+Create a `.env.local` file with the following variables:
+
+```bash
+# Firebase Configuration
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
+
+# Firebase Admin SDK (for server actions)
+FIREBASE_ADMIN_PROJECT_ID=your_project_id
+FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour Private Key Here\n-----END PRIVATE KEY-----\n"
+FIREBASE_ADMIN_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your_project.iam.gserviceaccount.com
+
+# Cloudinary Configuration
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloud_name
+NEXT_PUBLIC_CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=ml_default
+
+# Optional: Enable Firebase Emulators in development
+# NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true
+```
+
+### Cloudinary Setup
+
+1. Create a free account at [Cloudinary](https://cloudinary.com/)
+2. Get your Cloud Name, API Key, and API Secret from your dashboard
+3. Create an upload preset:
+   - Go to Settings > Upload
+   - Scroll to Upload presets
+   - Create a new preset or use the default `ml_default`
+   - Set signing mode to "Unsigned" for client-side uploads
+   - This allows direct uploads from the browser without server-side processing
+
 First, run the development server:
 
 ```bash

@@ -128,8 +128,8 @@ const Bookings = () => {
                   {bookings.map((booking) => (
                     <TableRow key={booking.id}>
                       <TableCell>
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium truncate">{booking.customer}</div>
+                        <div className="min-w-0 flex-1 overflow-hidden">
+                          <div className="font-medium truncate line-clamp-1">{booking.customer}</div>
                           <div className="text-sm text-muted-foreground md:hidden">
                             <span className="inline-flex items-center gap-1">
                               <span>{booking.destination}</span>
