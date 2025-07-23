@@ -195,7 +195,7 @@ export default function PostPage() {
             <CardHeader>
               <div className="space-y-4">
                 <div>
-                  <CardTitle className="text-xl sm:text-2xl md:text-3xl mb-2">{post.title}</CardTitle>
+                  <CardTitle className="text-lg mb-2">{post.title}</CardTitle>
                   <div className="flex flex-wrap items-center gap-2 mb-4">
                     <Badge variant="secondary">{post.category}</Badge>
                     <Badge className={getStatusColor(post.status)}>
@@ -221,7 +221,7 @@ export default function PostPage() {
             </CardHeader>
             <CardContent>
               <div className="prose prose-gray max-w-none">
-                <p className="text-lg leading-relaxed whitespace-pre-wrap break-words">{post.content}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{post.content}</p>
               </div>
             </CardContent>
           </Card>
@@ -435,7 +435,7 @@ export default function PostPage() {
           <div className="flex items-center space-x-3">
             <FileText className="h-8 w-8 text-muted-foreground" />
             <div className="min-w-0 flex-1 overflow-hidden">
-              <h3 className="font-semibold truncate line-clamp-1">{post.title}</h3>
+              <h3 className="font-semibold truncate w-40">{post.title}</h3>
               <p className="text-sm text-muted-foreground">{post.authorName}</p>
             </div>
           </div>

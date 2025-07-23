@@ -196,7 +196,7 @@ export function PostActions({ post, onPostUpdated, onPostDeleted }: PostActionsP
           <div className="flex items-center space-x-3">
             <FileText className="h-8 w-8 text-muted-foreground" />
             <div>
-              <h3 className="font-semibold">{post.title}</h3>
+              <h3 className="font-semibold w-40 truncate">{post.title}</h3>
               <p className="text-sm text-muted-foreground">{post.authorName}</p>
             </div>
           </div>
